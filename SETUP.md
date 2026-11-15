@@ -145,14 +145,14 @@ curl -s -X POST $API/geofences -H "Content-Type: application/json" -d '{
   "coordinates": [[37.7749,-122.4194],[37.7849,-122.4194],[37.7849,-122.4094],[37.7749,-122.4094],[37.7749,-122.4194]],
   "category": "delivery_zone"
 }'
-# 201 {"id":"geo_1","name":"Downtown Delivery Zone","status":"active","time_ns":"..."}
+# 200 {"id":"geo_1","name":"Downtown Delivery Zone","status":"active","time_ns":"..."}
 
 curl -s -X POST $API/geofences -H "Content-Type: application/json" -d '{
   "name": "Airport No-Go",
   "coordinates": [[37.78,-122.416],[37.79,-122.416],[37.79,-122.40],[37.78,-122.40],[37.78,-122.416]],
   "category": "restricted_zone"
 }'
-# 201 {"id":"geo_2", ...}
+# 200 {"id":"geo_2", ...}
 ```
 
 Validation reports every problem at once:
@@ -186,7 +186,7 @@ curl -s -X POST $API/vehicles -H "Content-Type: application/json" -d '{
   "vehicle_type": "truck",
   "phone": "+1234567890"
 }'
-# 201 {"id":"veh_1","vehicle_number":"KA-01-AB-1234","status":"active","time_ns":"..."}
+# 200 {"id":"veh_1","vehicle_number":"KA-01-AB-1234","status":"active","time_ns":"..."}
 ```
 
 Vehicle numbers are unique and case-insensitive, because they are stored upper-cased. Registering
@@ -206,7 +206,7 @@ Each vehicle also includes `current_location`, which is `null` until the first u
 # Alert on entry AND exit of the delivery zone, for veh_1 only
 curl -s -X POST $API/alerts/configure -H "Content-Type: application/json" \
   -d '{"geofence_id":"geo_1","vehicle_id":"veh_1","event_type":"both"}'
-# 201 {"alert_id":"alert_1","geofence_id":"geo_1","vehicle_id":"veh_1","event_type":"both","status":"active","time_ns":"..."}
+# 200 {"alert_id":"alert_1","geofence_id":"geo_1","vehicle_id":"veh_1","event_type":"both","status":"active","time_ns":"..."}
 
 # Omit vehicle_id to apply the rule to all vehicles
 curl -s -X POST $API/alerts/configure -H "Content-Type: application/json" \

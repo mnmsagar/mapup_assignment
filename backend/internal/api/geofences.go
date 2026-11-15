@@ -61,7 +61,7 @@ func (a *API) createGeofence(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, start, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusCreated, start, createGeofenceResponse{ID: g.ID, Name: g.Name, Status: g.Status})
+	httpx.WriteJSON(w, http.StatusOK, start, createGeofenceResponse{ID: g.ID, Name: g.Name, Status: g.Status})
 }
 
 func (a *API) listGeofences(w http.ResponseWriter, r *http.Request) {

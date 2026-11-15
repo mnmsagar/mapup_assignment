@@ -53,7 +53,7 @@ func (a *API) configureAlert(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, start, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusCreated, start, map[string]any{
+	httpx.WriteJSON(w, http.StatusOK, start, map[string]any{
 		"alert_id":    rule.ID,
 		"geofence_id": rule.GeofenceID,
 		"vehicle_id":  rule.VehicleID,

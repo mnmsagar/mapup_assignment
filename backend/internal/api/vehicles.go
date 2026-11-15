@@ -54,7 +54,7 @@ func (a *API) createVehicle(w http.ResponseWriter, r *http.Request) {
 		writeStoreError(w, start, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusCreated, start, map[string]string{
+	httpx.WriteJSON(w, http.StatusOK, start, map[string]string{
 		"id": v.ID, "vehicle_number": v.VehicleNumber, "status": v.Status,
 	})
 }

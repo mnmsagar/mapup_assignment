@@ -48,9 +48,8 @@ func WriteError(w http.ResponseWriter, status int, start time.Time, msg string, 
 	WriteJSON(w, status, start, ErrorBody{Error: msg, Details: details})
 }
 
-// DecodeJSON strictly decodes a request body (unknown fields rejected, 1 MiB cap).
+// DecodeJSON decodes a request body (unknown fields ignored, 1 MiB cap).
 func DecodeJSON(r *http.Request, dst any) error {
 	dec := json.NewDecoder(http.MaxBytesReader(nil, r.Body, 1<<20))
-	dec.DisallowUnknownFields()
 	return dec.Decode(dst)
 }
