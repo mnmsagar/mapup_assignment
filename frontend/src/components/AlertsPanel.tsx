@@ -4,14 +4,14 @@ import { api, errorMessage } from '../api/client';
 import { EVENT_TYPES, type AlertEventType, type Geofence, type Vehicle } from '../api/types';
 import { useResource } from '../hooks/useResource';
 import { formatTime } from '../lib/format';
-import { Button, EmptyState, ErrorBox, EventBadge, Field, LoadingRows, Section, Select } from './ui';
+import { Button, EmptyState, ErrorBox, EventBadge, Field, LoadingRows, PanelIntro, Section, Select } from './ui';
 
 interface Props {
   geofences: Geofence[];
   vehicles: Vehicle[];
 }
 
-const EVENT_LABEL: Record<AlertEventType, string> = { entry: 'On entry', exit: 'On exit', both: 'On entry & exit' };
+const EVENT_LABEL: Record<AlertEventType, string> = { entry: 'Enters', exit: 'Leaves', both: 'Enters or leaves' };
 
 export default function AlertsPanel({ geofences, vehicles }: Props) {
   const [geofenceId, setGeofenceId] = useState('');
@@ -33,8 +33,8 @@ export default function AlertsPanel({ geofences, vehicles }: Props) {
     if (!geofenceId) return toast.error('Choose a geofence to monitor.');
     setSubmitting(true);
     try {
-      const res = await api.configureAlert({ geofence_id: geofenceId, vehicle_id: vehicleId || undefined, event_type: eventType });
-      toast.success(`Alert rule ${res.alert_id} created`);
+      await api.configureAlert({ geofence_id: geofenceId, vehicle_id: vehicleId || undefined, event_type: eventType });
+      toast.success('Alert rule saved');
       rules.reload();
     } catch (err) {
       toast.error(errorMessage(err));
@@ -59,14 +59,21 @@ export default function AlertsPanel({ geofences, vehicles }: Props) {
 
   return (
     <div className="space-y-6">
-      <Section title="Configure alert rule">
+      <PanelIntro icon="⚙️" title="Alert rules">
+        A rule says <em>when</em> you want to be notified. Example: “Tell me when <strong>any vehicle</strong> enters{' '}
+        <strong>Downtown Delivery Zone</strong>.”
+        <br />
+        Restricted zones always alert on entry, even without a rule.
+      </PanelIntro>
+
+      <Section title="Create a rule">
         {geofences.length === 0 ? (
-          <EmptyState>Create a geofence first.</EmptyState>
+          <EmptyState>Create a zone first (🗺️ Zones tab).</EmptyState>
         ) : (
           <form onSubmit={submit} className="space-y-3">
-            <Field label="Geofence *">
+            <Field label="Which zone? *">
               <Select value={geofenceId} onChange={(e) => setGeofenceId(e.target.value)} required>
-                <option value="">Select a geofence…</option>
+                <option value="">Select a zone…</option>
                 {geofences.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name} ({g.id})
@@ -74,7 +81,7 @@ export default function AlertsPanel({ geofences, vehicles }: Props) {
                 ))}
               </Select>
             </Field>
-            <Field label="Vehicle" hint="Leave as “All vehicles” to alert for any vehicle.">
+            <Field label="Which vehicle?" hint="Leave as “All vehicles” to alert for any vehicle.">
               <Select value={vehicleId} onChange={(e) => setVehicleId(e.target.value)}>
                 <option value="">All vehicles</option>
                 {vehicles.map((v) => (
@@ -84,7 +91,7 @@ export default function AlertsPanel({ geofences, vehicles }: Props) {
                 ))}
               </Select>
             </Field>
-            <Field label="Trigger *">
+            <Field label="Alert me when the vehicle… *">
               <div className="grid grid-cols-3 gap-1 rounded-md bg-slate-100 p-1">
                 {EVENT_TYPES.map((t) => (
                   <button
@@ -100,18 +107,17 @@ export default function AlertsPanel({ geofences, vehicles }: Props) {
             </Field>
             <div className="flex justify-end">
               <Button type="submit" loading={submitting}>
-                Create rule
+                Save rule
               </Button>
             </div>
           </form>
         )}
-        <p className="text-xs text-slate-400">Entries into restricted zones always raise an alert, even without a rule.</p>
       </Section>
 
-      <Section title="Alert rules">
+      <Section title="Your rules">
         <div className="grid grid-cols-2 gap-2">
           <Select value={filterGeofence} onChange={(e) => setFilterGeofence(e.target.value)} className="text-xs">
-            <option value="">Any geofence</option>
+            <option value="">Any zone</option>
             {geofences.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -133,7 +139,7 @@ export default function AlertsPanel({ geofences, vehicles }: Props) {
         ) : rules.loading && rules.data.length === 0 ? (
           <LoadingRows />
         ) : rules.data.length === 0 ? (
-          <EmptyState>No alert rules match.</EmptyState>
+          <EmptyState>No rules yet. Create one above.</EmptyState>
         ) : (
           <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
             {rules.data.map((r) => (

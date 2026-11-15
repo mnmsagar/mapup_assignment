@@ -4,7 +4,7 @@ import { api, errorMessage } from '../api/client';
 import type { LatLng, LocationUpdateResult, Vehicle } from '../api/types';
 import { localInputToISO, toLocalInput } from '../lib/format';
 import type { MapMode } from './MapView';
-import { Button, EmptyState, Field, Input, Section, Select } from './ui';
+import { Button, EmptyState, Field, Input, PanelIntro, Section, Select } from './ui';
 
 interface Props {
   vehicles: Vehicle[];
@@ -25,6 +25,12 @@ export default function LocationPanel(props: Props) {
   const [timestamp, setTimestamp] = useState(() => toLocalInput(new Date()));
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<LocationUpdateResult | null>(null);
+
+  // Preselect the first vehicle so a single map click is enough to get going.
+  const { onSelectVehicle } = props;
+  useEffect(() => {
+    if (!selectedVehicleId && vehicles.length > 0) onSelectVehicle(vehicles[0].id);
+  }, [selectedVehicleId, vehicles, onSelectVehicle]);
 
   // Map clicks fill the inputs.
   useEffect(() => {
@@ -59,9 +65,15 @@ export default function LocationPanel(props: Props) {
     try {
       const res = await api.updateLocation({ vehicle_id: selectedVehicleId, latitude, longitude, timestamp: ts });
       setResult(res);
-      setMode('idle');
+      // Stay in pick mode so the next map click moves the vehicle again.
+      setMode('pick');
       if (res.note) toast(res.note, { icon: 'ℹ️' });
-      else toast.success(res.current_geofences.length ? `Location updated — inside ${res.current_geofences.length} geofence(s)` : 'Location updated — outside all geofences');
+      else
+        toast.success(
+          res.current_geofences.length
+            ? `Vehicle moved. It is now inside: ${res.current_geofences.map((g) => g.geofence_name).join(', ')}`
+            : 'Vehicle moved. It is not inside any zone.',
+        );
       props.onUpdated();
     } catch (err) {
       toast.error(errorMessage(err));
@@ -70,13 +82,34 @@ export default function LocationPanel(props: Props) {
     }
   };
 
+  const intro = (
+    <PanelIntro icon="📍" title="Move a vehicle">
+      There are no real trucks here, so you play the GPS device: choose where the vehicle is right now.
+      <ol className="mt-1 list-decimal space-y-0.5 pl-4">
+        <li>Pick a vehicle.</li>
+        <li>Click anywhere on the map.</li>
+        <li>
+          Press <strong>Move vehicle here</strong>.
+        </li>
+      </ol>
+      Move it from outside a zone to inside it to trigger an <strong>entry</strong>, then back out for an{' '}
+      <strong>exit</strong>.
+    </PanelIntro>
+  );
+
   if (vehicles.length === 0) {
-    return <EmptyState>Register a vehicle first, then come back to update its location.</EmptyState>;
+    return (
+      <div className="space-y-4">
+        {intro}
+        <EmptyState>Add a vehicle first (🚚 Vehicles tab), then come back here to move it.</EmptyState>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Section title="Update vehicle location">
+      {intro}
+      <Section title="Where is the vehicle now?">
         <form onSubmit={submit} className="space-y-3">
           <Field label="Vehicle *">
             <Select value={selectedVehicleId ?? ''} onChange={(e) => props.onSelectVehicle(e.target.value || null)} required>
@@ -88,6 +121,14 @@ export default function LocationPanel(props: Props) {
               ))}
             </Select>
           </Field>
+
+          <div
+            className={`rounded-md border border-dashed p-2 text-center text-xs ${
+              pickedPoint ? 'border-green-300 bg-green-50 text-green-800' : 'border-violet-300 bg-violet-50 text-violet-800'
+            }`}
+          >
+            {pickedPoint ? '✓ Point chosen on the map. You can click again to change it.' : '👆 Click on the map to choose the location'}
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Latitude *">
@@ -105,13 +146,13 @@ export default function LocationPanel(props: Props) {
             disabled={mode === 'draw'}
             className="w-full"
           >
-            📍 {mode === 'pick' ? 'Picking… click the map (click here to stop)' : 'Pick location on map'}
+            📍 {mode === 'pick' ? 'Map clicking is on (click here to turn off)' : 'Pick location on map'}
           </Button>
 
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm text-slate-700">
               <input type="checkbox" checked={useNow} onChange={(e) => setUseNow(e.target.checked)} />
-              Use current time
+              Use current time (recommended)
             </label>
             {!useNow && (
               <Field label="Timestamp" hint="Your local time; sent as ISO 8601 UTC.">
@@ -120,30 +161,33 @@ export default function LocationPanel(props: Props) {
             )}
           </div>
 
-          <Button type="submit" loading={submitting} className="w-full">
-            Send location update
+          <Button type="submit" loading={submitting} disabled={!selectedVehicleId || lat === '' || lng === ''} className="w-full">
+            🚚 Move vehicle here
           </Button>
         </form>
       </Section>
 
       {result && (
-        <Section title="Last update result">
+        <Section title="Result">
           <div className="space-y-2 rounded-md border border-slate-200 p-3 text-sm">
             <div className="text-slate-600">
-              Vehicle <span className="font-medium">{result.vehicle_id}</span>
+              <span className="font-medium">{vehicles.find((v) => v.id === result.vehicle_id)?.vehicle_number ?? result.vehicle_id}</span> is now:
             </div>
             {result.current_geofences.length === 0 ? (
-              <p className="text-slate-500">Not inside any geofence.</p>
+              <p className="rounded bg-slate-50 px-2 py-1.5 text-slate-600">Outside all zones</p>
             ) : (
               <ul className="space-y-1">
                 {result.current_geofences.map((g) => (
-                  <li key={g.geofence_id} className="flex items-center justify-between rounded bg-green-50 px-2 py-1">
+                  <li key={g.geofence_id} className="flex items-center justify-between rounded bg-green-50 px-2 py-1.5">
                     <span>{g.geofence_name}</span>
-                    <span className="text-xs font-semibold uppercase text-green-700">{g.status}</span>
+                    <span className="text-xs font-semibold uppercase text-green-700">✓ inside</span>
                   </li>
                 ))}
               </ul>
             )}
+            <p className="text-xs text-slate-400">
+              If this caused an entry or exit and an alert applies, it appears under 🔔 Live alerts.
+            </p>
             {result.note && <p className="text-xs text-amber-700">{result.note}</p>}
           </div>
         </Section>

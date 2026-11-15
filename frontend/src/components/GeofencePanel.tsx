@@ -5,7 +5,14 @@ import { CATEGORIES, type Category, type LatLng } from '../api/types';
 import { useResource } from '../hooks/useResource';
 import { CATEGORY_STYLE, formatTime } from '../lib/format';
 import type { MapMode } from './MapView';
-import { Button, CategoryBadge, EmptyState, ErrorBox, Field, Input, LoadingRows, Section, Select } from './ui';
+import { Button, CategoryBadge, EmptyState, ErrorBox, Field, Input, LoadingRows, PanelIntro, Section, Select } from './ui';
+
+const CATEGORY_HINT: Record<Category, string> = {
+  delivery_zone: 'An area where deliveries happen.',
+  restricted_zone: 'No-entry area. Any vehicle entering it raises an alert automatically.',
+  toll_zone: 'A toll area, useful for tracking toll crossings.',
+  customer_area: "A customer's premises or site.",
+};
 
 interface Props {
   mode: MapMode;
@@ -96,12 +103,12 @@ export default function GeofencePanel({ mode, setMode, draftPoints, setDraftPoin
     if (parsed.error) return toast.error(parsed.error);
     let coordinates = parsed.points;
     if (coordinates.length >= 3 && !isClosed(coordinates)) coordinates = [...coordinates, coordinates[0]];
-    if (coordinates.length < 4) return toast.error('A geofence needs at least 3 distinct points.');
+    if (coordinates.length < 4) return toast.error('A zone needs at least 3 corners. Click "Draw on map" and click 3 or more points.');
 
     setSubmitting(true);
     try {
       const res = await api.createGeofence({ name: name.trim(), description: description.trim(), category, coordinates });
-      toast.success(`Geofence "${res.name}" created (${res.id})`);
+      toast.success(`Zone "${res.name}" saved`);
       reset();
       onCreated();
     } catch (err) {
@@ -113,7 +120,14 @@ export default function GeofencePanel({ mode, setMode, draftPoints, setDraftPoin
 
   return (
     <div className="space-y-6">
-      <Section title="Create geofence">
+      <PanelIntro icon="🗺️" title="Zones (geofences)">
+        A zone is an area you mark on the map, such as a delivery area or a place vehicles must not enter. The system
+        then knows whenever a vehicle goes in or comes out.
+        <br />
+        <strong>Easiest way:</strong> click <em>Draw on map</em>, click 3 or more corners on the map, then <em>Finish drawing</em>.
+      </PanelIntro>
+
+      <Section title="Create a zone">
         <form onSubmit={submit} className="space-y-3">
           <Field label="Name *">
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Downtown Delivery Zone" required />
@@ -121,7 +135,7 @@ export default function GeofencePanel({ mode, setMode, draftPoints, setDraftPoin
           <Field label="Description">
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional" />
           </Field>
-          <Field label="Category *">
+          <Field label="Zone type *" hint={CATEGORY_HINT[category]}>
             <Select value={category} onChange={(e) => setCategory(e.target.value as Category)}>
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -132,12 +146,14 @@ export default function GeofencePanel({ mode, setMode, draftPoints, setDraftPoin
           </Field>
 
           <Field
-            label="Boundary *"
+            label="Zone boundary *"
             hint={
               parsed.error ? (
                 <span className="text-red-600">{parsed.error}</span>
+              ) : drawing ? (
+                `Drawing: ${draftPoints.length} corner(s) clicked. Click at least 3 corners on the map, then press Finish drawing.`
               ) : (
-                `${parsed.points.length} point(s). One "lat, lng" per line — the polygon is closed automatically.`
+                `${parsed.points.length} point(s). Draw on the map, or type one "latitude, longitude" per line. The shape closes automatically.`
               )
             }
           >
@@ -165,7 +181,7 @@ export default function GeofencePanel({ mode, setMode, draftPoints, setDraftPoin
                 </Button>
               </>
             ) : (
-              <Button type="button" variant="secondary" onClick={startDrawing} disabled={mode === 'pick'}>
+              <Button type="button" variant={parsed.points.length ? 'secondary' : 'primary'} onClick={startDrawing} disabled={mode === 'pick'}>
                 ✏️ Draw on map
               </Button>
             )}
@@ -173,14 +189,14 @@ export default function GeofencePanel({ mode, setMode, draftPoints, setDraftPoin
               Clear
             </Button>
             <Button type="submit" loading={submitting} disabled={drawing} className="ml-auto">
-              Create
+              Save zone
             </Button>
           </div>
         </form>
       </Section>
 
       <Section
-        title="Geofences"
+        title="Your zones"
         action={
           <Select value={filter} onChange={(e) => setFilter(e.target.value as Category | '')} className="!w-auto !py-1 text-xs">
             <option value="">All categories</option>
@@ -197,7 +213,7 @@ export default function GeofencePanel({ mode, setMode, draftPoints, setDraftPoin
         ) : list.loading && list.data.length === 0 ? (
           <LoadingRows />
         ) : list.data.length === 0 ? (
-          <EmptyState>No geofences{filter && ' in this category'} yet.</EmptyState>
+          <EmptyState>No zones{filter && ' of this type'} yet. Create one above.</EmptyState>
         ) : (
           <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
             {list.data.map((g) => (

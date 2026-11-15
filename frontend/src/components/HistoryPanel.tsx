@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import type { Geofence, Vehicle } from '../api/types';
 import { useResource } from '../hooks/useResource';
 import { fmtCoord, formatTime, localInputToISO } from '../lib/format';
-import { Button, EmptyState, ErrorBox, EventBadge, Field, Input, LoadingRows, Select, Spinner } from './ui';
+import { Button, EmptyState, ErrorBox, EventBadge, Field, Input, LoadingRows, PanelIntro, Select, Spinner } from './ui';
 
 interface Props {
   geofences: Geofence[];
@@ -49,6 +49,10 @@ export default function HistoryPanel({ geofences, vehicles, refreshKey }: Props)
 
   return (
     <div className="space-y-4">
+      <PanelIntro icon="🕘" title="History">
+        Every time any vehicle entered or left any zone, it is recorded here, even when no alert was sent. Use the
+        filters to narrow it down.
+      </PanelIntro>
       <div className="grid grid-cols-2 gap-2">
         <Field label="Vehicle">
           <Select value={vehicleId} onChange={(e) => onFilter(setVehicleId)(e.target.value)}>
@@ -60,9 +64,9 @@ export default function HistoryPanel({ geofences, vehicles, refreshKey }: Props)
             ))}
           </Select>
         </Field>
-        <Field label="Geofence">
+        <Field label="Zone">
           <Select value={geofenceId} onChange={(e) => onFilter(setGeofenceId)(e.target.value)}>
-            <option value="">All geofences</option>
+            <option value="">All zones</option>
             {geofences.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -97,7 +101,9 @@ export default function HistoryPanel({ geofences, vehicles, refreshKey }: Props)
       ) : history.loading && violations.length === 0 ? (
         <LoadingRows />
       ) : violations.length === 0 ? (
-        <EmptyState>No geofence events{filtered ? ' match these filters' : ' recorded yet'}.</EmptyState>
+        <EmptyState>
+          {filtered ? 'No events match these filters.' : 'Nothing recorded yet. Move a vehicle into or out of a zone to create an event.'}
+        </EmptyState>
       ) : (
         <div className="relative overflow-x-auto rounded-md border border-slate-200">
           {history.loading && (
@@ -110,7 +116,7 @@ export default function HistoryPanel({ geofences, vehicles, refreshKey }: Props)
               <tr>
                 <th className="px-2 py-2 font-medium">Time</th>
                 <th className="px-2 py-2 font-medium">Vehicle</th>
-                <th className="px-2 py-2 font-medium">Geofence</th>
+                <th className="px-2 py-2 font-medium">Zone</th>
                 <th className="px-2 py-2 font-medium">Event</th>
                 <th className="hidden px-2 py-2 font-medium sm:table-cell">Location</th>
               </tr>

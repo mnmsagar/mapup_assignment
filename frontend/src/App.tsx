@@ -4,6 +4,7 @@ import { api, API_URL } from './api/client';
 import type { LatLng, LiveAlert } from './api/types';
 import AlertsPanel from './components/AlertsPanel';
 import GeofencePanel from './components/GeofencePanel';
+import GettingStarted from './components/GettingStarted';
 import HistoryPanel from './components/HistoryPanel';
 import LiveFeed, { AlertCard, ConnectionPill } from './components/LiveFeed';
 import LocationPanel from './components/LocationPanel';
@@ -12,20 +13,32 @@ import VehiclePanel from './components/VehiclePanel';
 import { useAlertsSocket } from './hooks/useAlertsSocket';
 import { useResource } from './hooks/useResource';
 
+// Ordered to follow the natural flow: set up zones and vehicles, move vehicles, watch alerts.
 const TABS = ['geofences', 'vehicles', 'location', 'alerts', 'live', 'history'] as const;
 type Tab = (typeof TABS)[number];
 
-const TAB_LABEL: Record<Tab, string> = {
-  geofences: 'Geofences',
-  vehicles: 'Vehicles',
-  location: 'Location',
-  alerts: 'Alert rules',
-  live: 'Live',
-  history: 'History',
+const TAB_META: Record<Tab, { icon: string; label: string }> = {
+  geofences: { icon: '🗺️', label: 'Zones' },
+  vehicles: { icon: '🚚', label: 'Vehicles' },
+  location: { icon: '📍', label: 'Move vehicle' },
+  alerts: { icon: '⚙️', label: 'Alert rules' },
+  live: { icon: '🔔', label: 'Live alerts' },
+  history: { icon: '🕘', label: 'History' },
 };
+
+const GUIDE_KEY = 'geofence.guideHidden';
+
+function readGuideHidden(): boolean {
+  try {
+    return localStorage.getItem(GUIDE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('geofences');
+  const [guideHidden, setGuideHidden] = useState(readGuideHidden);
   const [mode, setMode] = useState<MapMode>('idle');
   const [draftPoints, setDraftPoints] = useState<LatLng[]>([]);
   const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
@@ -71,7 +84,8 @@ export default function App() {
 
   const changeTab = (next: Tab) => {
     setTab(next);
-    setMode('idle');
+    // On "Move vehicle" the map is ready to click straight away.
+    setMode(next === 'location' ? 'pick' : 'idle');
     if (next !== 'geofences') setDraftPoints([]);
     if (next !== 'location') setPickedPoint(null);
   };
@@ -88,9 +102,27 @@ export default function App() {
       <header className="flex items-center justify-between gap-3 bg-slate-900 px-4 py-3 text-white">
         <div className="flex items-center gap-2">
           <img src="/favicon.svg" alt="" className="h-6 w-6" />
-          <h1 className="text-base font-semibold sm:text-lg">Geofence Control</h1>
+          <div>
+            <h1 className="text-base font-semibold leading-tight sm:text-lg">Geofence Control</h1>
+            <p className="hidden text-xs text-slate-400 sm:block">Track vehicles and get alerts when they enter or leave zones</p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
+          {guideHidden && (
+            <button
+              onClick={() => {
+                setGuideHidden(false);
+                try {
+                  localStorage.removeItem(GUIDE_KEY);
+                } catch {
+                  /* storage unavailable */
+                }
+              }}
+              className="rounded-full px-2.5 py-1 text-xs font-medium text-slate-300 hover:bg-white/10 hover:text-white"
+            >
+              ❓ Guide
+            </button>
+          )}
           <button
             onClick={() => changeTab('live')}
             className="relative rounded-full px-2 py-1 text-sm hover:bg-white/10"
@@ -142,11 +174,14 @@ export default function App() {
                 role="tab"
                 aria-selected={tab === t}
                 onClick={() => changeTab(t)}
-                className={`relative whitespace-nowrap px-3 py-2.5 text-sm font-medium transition-colors ${
-                  tab === t ? 'border-b-2 border-blue-600 text-blue-700' : 'text-slate-500 hover:text-slate-800'
+                className={`relative flex shrink-0 flex-col items-center gap-0.5 whitespace-nowrap px-3 py-2 text-xs font-medium transition-colors ${
+                  tab === t ? 'border-b-2 border-blue-600 bg-blue-50/50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
                 }`}
               >
-                {TAB_LABEL[t]}
+                <span className="text-base leading-none" aria-hidden>
+                  {TAB_META[t].icon}
+                </span>
+                {TAB_META[t].label}
                 {t === 'live' && socket.unread > 0 && tab !== 'live' && (
                   <span className="ml-1 rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white">{socket.unread}</span>
                 )}
@@ -154,7 +189,24 @@ export default function App() {
             ))}
           </nav>
 
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+            {!guideHidden && (
+              <GettingStarted
+                hasZones={geofences.data.length > 0}
+                hasVehicles={vehicles.data.length > 0}
+                hasMoved={vehicles.data.some((v) => v.current_location)}
+                hasAlert={socket.alerts.length > 0}
+                go={changeTab}
+                onDismiss={() => {
+                  setGuideHidden(true);
+                  try {
+                    localStorage.setItem(GUIDE_KEY, '1');
+                  } catch {
+                    /* storage unavailable */
+                  }
+                }}
+              />
+            )}
             {tab === 'geofences' && (
               <GeofencePanel
                 mode={mode}

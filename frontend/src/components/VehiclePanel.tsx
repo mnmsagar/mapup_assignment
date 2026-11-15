@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { api, errorMessage } from '../api/client';
 import type { Vehicle, VehicleStatus } from '../api/types';
 import { fmtCoord, relativeTime } from '../lib/format';
-import { Button, CategoryBadge, EmptyState, ErrorBox, Field, Input, LoadingRows, Section, Select, Spinner } from './ui';
+import { Button, CategoryBadge, EmptyState, ErrorBox, Field, Input, LoadingRows, PanelIntro, Section, Select, Spinner } from './ui';
 
 interface Props {
   vehicles: Vehicle[];
@@ -29,7 +29,7 @@ export default function VehiclePanel({ vehicles, loading, error, reload, selecte
     setSubmitting(true);
     try {
       const res = await api.createVehicle(form);
-      toast.success(`Vehicle ${res.vehicle_number} registered (${res.id})`);
+      toast.success(`Vehicle ${res.vehicle_number} added`);
       setForm({ vehicle_number: '', driver_name: '', vehicle_type: form.vehicle_type, phone: '' });
       reload();
     } catch (err) {
@@ -41,7 +41,12 @@ export default function VehiclePanel({ vehicles, loading, error, reload, selecte
 
   return (
     <div className="space-y-6">
-      <Section title="Register vehicle">
+      <PanelIntro icon="🚚" title="Vehicles">
+        Add the trucks or cars you want to track. Click a vehicle in the list below to see where it is and which zones
+        it is inside.
+      </PanelIntro>
+
+      <Section title="Add a vehicle">
         <form onSubmit={submit} className="grid grid-cols-2 gap-3">
           <Field label="Vehicle number *">
             <Input value={form.vehicle_number} onChange={set('vehicle_number')} placeholder="KA-01-AB-1234" required />
@@ -63,14 +68,14 @@ export default function VehiclePanel({ vehicles, loading, error, reload, selecte
           </Field>
           <div className="col-span-2 flex justify-end">
             <Button type="submit" loading={submitting}>
-              Register
+              Add vehicle
             </Button>
           </div>
         </form>
       </Section>
 
       <Section
-        title={`Vehicles (${vehicles.length})`}
+        title={`Your vehicles (${vehicles.length})`}
         action={
           <Button variant="ghost" onClick={reload} loading={loading} className="!px-2 !py-1 text-xs">
             Refresh
@@ -82,7 +87,7 @@ export default function VehiclePanel({ vehicles, loading, error, reload, selecte
         ) : loading && vehicles.length === 0 ? (
           <LoadingRows />
         ) : vehicles.length === 0 ? (
-          <EmptyState>No vehicles registered yet.</EmptyState>
+          <EmptyState>No vehicles yet. Add one above.</EmptyState>
         ) : (
           <ul className="divide-y divide-slate-100 rounded-md border border-slate-200">
             {vehicles.map((v) => (
@@ -149,12 +154,12 @@ function VehicleRow({ vehicle: v, expanded, onToggle, statusKey }: { vehicle: Ve
                 <span className="font-medium">Location: </span>
                 {status.current_location
                   ? `${fmtCoord(status.current_location.latitude)}, ${fmtCoord(status.current_location.longitude)}`
-                  : 'unknown — send a location update'}
+                  : 'not placed yet. Use 📍 Move vehicle to put it on the map'}
               </div>
               <div className="flex flex-wrap items-center gap-1">
                 <span className="font-medium text-slate-600">Inside:</span>
                 {status.current_geofences.length === 0 ? (
-                  <span className="text-slate-400">no geofences</span>
+                  <span className="text-slate-400">no zones</span>
                 ) : (
                   status.current_geofences.map((g) => (
                     <span key={g.geofence_id} className="inline-flex items-center gap-1 rounded bg-white px-1.5 py-0.5 shadow-sm">

@@ -84,6 +84,21 @@ export function Section({ title, action, children }: { title: string; action?: R
   );
 }
 
+/** Plain-language explanation shown at the top of each tab. */
+export function PanelIntro({ icon, title, children }: { icon: string; title: string; children: ReactNode }) {
+  return (
+    <div className="flex gap-3 rounded-lg border border-blue-100 bg-blue-50/70 p-3">
+      <span className="text-xl leading-none" aria-hidden>
+        {icon}
+      </span>
+      <div className="space-y-1">
+        <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
+        <div className="text-xs leading-relaxed text-slate-600">{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export function EmptyState({ children }: { children: ReactNode }) {
   return <p className="rounded-md border border-dashed border-slate-300 p-4 text-center text-sm text-slate-500">{children}</p>;
 }
